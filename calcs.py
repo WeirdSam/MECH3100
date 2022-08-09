@@ -35,6 +35,7 @@ def normal(mass_est_sled, tractor_mass, gravity, theta):
     normal_tractor = tractor_mass * gravity * cos(radians(theta)) #N
     return normal_sled, normal_tractor
 
+
 def friction(normal_sled, normal_tractor, mu_sled, c_tire_conc):
     #Friction force Due to Sled
     force_fric_sled = mu_sled * normal_sled #N
@@ -53,6 +54,7 @@ def friction(normal_sled, normal_tractor, mu_sled, c_tire_conc):
     
     return tractorfrict, winchfrict, totalfrict
 
+
 def traction(friction, normal_tractor, mu_tractor):
     #Traction Force
     tract_force = mu_tractor * normal_tractor
@@ -60,6 +62,7 @@ def traction(friction, normal_tractor, mu_tractor):
         return 'traction force satisfactory', tract_force
     if tract_force < friction:
         return 'traction force UNSATISFACTORY', tract_force
+
 
 def power(dist, time, totalfrict):  
     #Required Average Velocity
@@ -70,7 +73,6 @@ def power(dist, time, totalfrict):
     return minvel, p_req_min   
 
 
-    
 def winchpower(dist, time, winchfrict):  
     #Required Average Velocity
     minvel = dist/time #m/s 
@@ -78,6 +80,7 @@ def winchpower(dist, time, winchfrict):
     p_req_min = winchfrict * minvel/nu
     #power is const through gear train
     return minvel, p_req_min    
+
 
 def iterate(dist, max_time, winchfrict, tractorfrict):
     tol = 0.05
@@ -105,24 +108,20 @@ def iterate(dist, max_time, winchfrict, tractorfrict):
     return P, w_v, t_v, w_time, t_time
     
 
-
-
-# def gear(min_vel, r_est, p_req_min, w_motor): 
-#     #angular velocity of tire(output)  
-#     w_tire = min_vel / r_est
-#     T_est_tire = p_req_min/w_tire
-#     #required gear ratio
-#     GR = w_motor/w_tire
+def gearwinchsys(P, v_winch, v_tractor, t_winch, t_tractor, r_winch,  r_tractor, w_motor): 
+    #angular velocity of tire(output)  
+    w_winch = v_winch / r_winch
+    w_tractor = v_tractor / r_tractor
     
-#     #for planetary gear config x is number of stages requires
-#     x = log(GR, 3)
-#     y = trunc(x)
-#     pla_GR = 3**y
-#     spur_GR = GR / pla_GR
-#     spur_pin = 16
-#     spur_gear = round(spur_pin * spur_GR,0)
-#     return GR, y, T_est_tire, spur_gear, pla_GR, spur_pin, spur_GR
-# GR, x, T_est, spur_gear, pla_GR, spur_pin, spur_GR = gear(min_vel, r_est, p_motor, w_motor)
+    #torque output
+    T_winch = P/w_winch
+    T_tractor = P/w_tractor
+    
+    #required winch gear ratio
+    GR_winch = w_motor/w_winch
+    GR_tractor = w_motor/w_tractor
+    return GR_winch, GR_tractor, T_winch, T_tractor, w_tractor, w_winch
+
     
 #Values
 mu_s_sled = 0.58 #static coefficient of friction used
@@ -137,9 +136,12 @@ mu_tractor = 0.9 #(dry), 0.6 wet
 nu = 0.8 #est gear efficiency
 
 #gear vals
-r_est = 0.1 #m
-w_motor = 4500 * 2 * pi /60 #rad/s - 3000 is RPM
-p_motor = 50 #W
+r_tractor = 0.1 #m
+r_winch = 0.1 #m
+Kv = 300 #rpm/V
+V = 7.2 #V
+w_motor = (Kv*V) * 2 * pi /60 #rad/s - 3000 is RPM
+p_motor = 80 #W
 
 
 
@@ -147,8 +149,11 @@ p_motor = 50 #W
 normal_sled, normal_tractor = normal(mass_est_sled, tractor_mass, gravity, theta)
 tractorfrict, winchfrict, totalfrict = friction(normal_sled, normal_tractor, mu_s_sled, c_tire_conc)
 test, tract_force = traction(tractorfrict, normal_tractor, mu_tractor)
-P, w_v, t_v, w_time, t_time = iterate(dist, max_time, winchfrict, tractorfrict)
+P, v_winch, v_tractor, t_winch, t_tractor = iterate(dist, max_time, winchfrict, tractorfrict)
 min_vel, power = power(dist, max_time, totalfrict)
+GR_winch, GR_tractor, T_winch, T_tractor, w_tractor, w_winch = gearwinchsys(p_motor, v_winch, v_tractor, t_winch, t_tractor, r_winch,  r_tractor, w_motor)
+
+
 
 #Print
 print("-"*50)
@@ -158,7 +163,8 @@ print(f'total friction force at max is: \n{tractorfrict, winchfrict} N\n')
 
 print(f'traction force of system is: \n{tract_force} N\n')
    
-print(f'min req power of motor for max friction and for winch velocity of {w_v}m/s and  tractor velocity of {t_v}m/s is: \n{P} W\n')
+print(f'min req power of motor for max friction and for winch velocity of {v_winch}m/s and  tractor velocity of {v_tractor}m/s is: \n{P} W\n')
 
 print(f'power required for system without winch is {power} W, with minimum velocity of {min_vel}')
 
+print(GR_winch, GR_tractor, T_winch, T_tractor, w_tractor, w_winch)
